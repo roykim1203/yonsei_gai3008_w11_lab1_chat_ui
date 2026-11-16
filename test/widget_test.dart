@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -123,5 +125,222 @@ void main() {
     final sendRect = tester.getRect(find.byIcon(Icons.send));
     expect(sendRect.bottom, lessThanOrEqualTo(500.0));
     expect(sendRect.top, greaterThanOrEqualTo(0.0));
+  });
+
+  testWidgets('오류 말풍선은 종류별 문구를 왼쪽에 표시한다',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: ChatPage(
+          initialMessages: [
+            ChatMessage(
+              text: '',
+              isUser: false,
+              error: ChatErrorKind.unauthorized,
+            ),
+            ChatMessage(
+              text: '',
+              isUser: false,
+              error: ChatErrorKind.rateLimited,
+            ),
+            ChatMessage(text: '', isUser: false, error: ChatErrorKind.server),
+            ChatMessage(text: '', isUser: false, error: ChatErrorKind.timeout),
+          ],
+        ),
+      ),
+    );
+
+    expect(find.text('키/권한을 확인해 주세요'), findsOneWidget);
+    expect(find.text('잠시 후 다시 시도해 주세요'), findsOneWidget);
+    expect(find.text('응답을 받지 못했습니다'), findsOneWidget);
+    expect(find.text('네트워크를 확인해 주세요'), findsOneWidget);
+    expect(find.byIcon(Icons.error_outline), findsNWidgets(4));
+    expect(find.text('다시 시도'), findsNWidgets(4));
+
+    // AI 메시지처럼 왼쪽에 붙는다
+    final screenWidth =
+        tester.view.physicalSize.width / tester.view.devicePixelRatio;
+    final rect = tester.getRect(find.text('키/권한을 확인해 주세요'));
+    expect(rect.center.dx, lessThan(screenWidth / 2));
+  });
+
+  testWidgets('오류 말풍선이 있어도 메시지를 보낼 수 있다',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: ChatPage(
+          initialMessages: [
+            ChatMessage(text: '', isUser: false, error: ChatErrorKind.server),
+          ],
+        ),
+      ),
+    );
+
+    await tester.enterText(find.byType(TextField), '오류 뒤 입력');
+    await tester.tap(find.byIcon(Icons.send));
+    await tester.pump();
+
+    expect(find.text('오류 뒤 입력'), findsOneWidget);
+    expect(find.text('응답을 받지 못했습니다'), findsOneWidget);
+  });
+
+  testWidgets('실패하면 오류 말풍선이 남고 재시도 성공 시 AI 응답으로 바뀐다',
+      (WidgetTester tester) async {
+    final mock = MockChatReply(failuresBeforeSuccess: 1);
+    await tester.pumpWidget(MaterialApp(home: ChatPage(reply: mock.call)));
+
+    await tester.enterText(find.byType(TextField), '질문');
+    await tester.tap(find.byIcon(Icons.send));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+
+    // 사용자 말풍선 1개 + 왼쪽 오류 말풍선
+    expect(find.text('질문'), findsOneWidget);
+    expect(find.text('응답을 받지 못했습니다'), findsOneWidget);
+    expect(find.text('다시 시도'), findsOneWidget);
+
+    await tester.tap(find.text('다시 시도'));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+
+    // 오류는 사라지고 AI 응답이 추가되며, 사용자 메시지는 중복되지 않는다
+    expect(find.text('응답을 받지 못했습니다'), findsNothing);
+    expect(find.textContaining('Mock 응답입니다'), findsOneWidget);
+    expect(find.text('질문'), findsOneWidget);
+  });
+
+  testWidgets('재시도가 다시 실패하면 오류 말풍선이 다시 보인다',
+      (WidgetTester tester) async {
+    final mock = MockChatReply(failuresBeforeSuccess: 2);
+    await tester.pumpWidget(MaterialApp(home: ChatPage(reply: mock.call)));
+
+    await tester.enterText(find.byType(TextField), '질문');
+    await tester.tap(find.byIcon(Icons.send));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('응답을 받지 못했습니다'), findsOneWidget);
+
+    await tester.tap(find.text('다시 시도'));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+
+    expect(find.text('응답을 받지 못했습니다'), findsOneWidget);
+    expect(find.text('질문'), findsOneWidget);
+  });
+
+  testWidgets('요청 처리 중에는 중복 전송이 막힌다', (WidgetTester tester) async {
+    final completer = Completer<String>();
+    Future<String> reply(String text) => completer.future;
+
+    await tester.pumpWidget(MaterialApp(home: ChatPage(reply: reply)));
+
+    await tester.enterText(find.byType(TextField), '한 번만');
+    await tester.tap(find.byIcon(Icons.send));
+    await tester.pump();
+
+    await tester.enterText(find.byType(TextField), '두 번째');
+    await tester.tap(find.byIcon(Icons.send));
+    await tester.pump();
+
+    expect(find.text('한 번만'), findsOneWidget);
+    expect(find.text('두 번째'), findsNothing);
+
+    completer.complete('응답');
+    await tester.pump();
+  });
+
+  testWidgets('재시도 중에는 스피너가 보이고 버튼이 사라진다',
+      (WidgetTester tester) async {
+    final mock = MockChatReply(failuresBeforeSuccess: 1);
+    await tester.pumpWidget(MaterialApp(home: ChatPage(reply: mock.call)));
+
+    await tester.enterText(find.byType(TextField), '질문');
+    await tester.tap(find.byIcon(Icons.send));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('응답을 받지 못했습니다'), findsOneWidget);
+
+    await tester.tap(find.text('다시 시도'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 250));
+
+    // AnimatedSwitcher로 버튼이 스피너로 바뀐다
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(find.text('다시 시도'), findsNothing);
+
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pump(const Duration(milliseconds: 250));
+
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.text('응답을 받지 못했습니다'), findsNothing);
+    expect(find.textContaining('Mock 응답입니다'), findsOneWidget);
+    expect(find.text('질문'), findsOneWidget);
+  });
+
+  testWidgets('429는 재시도마다 1초 → 2초 기다린 뒤 성공한다',
+      (WidgetTester tester) async {
+    final mock = MockChatReply(
+      failuresBeforeSuccess: 2,
+      failure: const ChatFailure(ChatErrorKind.rateLimited),
+    );
+    await tester.pumpWidget(MaterialApp(home: ChatPage(reply: mock.call)));
+
+    await tester.enterText(find.byType(TextField), '질문');
+    await tester.tap(find.byIcon(Icons.send));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 600));
+    expect(find.text('잠시 후 다시 시도해 주세요'), findsOneWidget);
+
+    // 1차 재시도 — 1초 대기 안내
+    await tester.tap(find.text('다시 시도'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('1초 후 다시 시도'), findsOneWidget);
+
+    // 1초 대기 + 0.5초 Mock 응답 → 다시 429
+    await tester.pump(const Duration(milliseconds: 1300));
+    expect(find.text('잠시 후 다시 시도해 주세요'), findsOneWidget);
+
+    // 2차 재시도 — 2초 대기 안내
+    await tester.tap(find.text('다시 시도'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('2초 후 다시 시도'), findsOneWidget);
+
+    // 2초 대기 + 0.5초 Mock 응답 → 성공
+    await tester.pump(const Duration(milliseconds: 2300));
+
+    expect(find.text('잠시 후 다시 시도해 주세요'), findsNothing);
+    expect(find.textContaining('Mock 응답입니다'), findsOneWidget);
+    expect(find.text('질문'), findsOneWidget);
+  });
+
+  testWidgets('401·500·timeout 오류에는 백오프가 없다', (WidgetTester tester) async {
+    for (final kind in [
+      ChatErrorKind.unauthorized,
+      ChatErrorKind.server,
+      ChatErrorKind.timeout,
+    ]) {
+      final mock = MockChatReply(
+        failuresBeforeSuccess: 1,
+        failure: ChatFailure(kind),
+      );
+      await tester.pumpWidget(MaterialApp(home: ChatPage(reply: mock.call)));
+
+      await tester.enterText(find.byType(TextField), kind.name);
+      await tester.tap(find.byIcon(Icons.send));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 600));
+
+      await tester.tap(find.text('다시 시도'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.textContaining('초 후 다시 시도'), findsNothing);
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pumpWidget(const SizedBox.shrink());
+    }
   });
 }
