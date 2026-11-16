@@ -27,24 +27,29 @@ class ChatMessage {
   final bool isUser;
 }
 
+/// 실습용 가짜 대화 — API를 붙이기 전까지 이 목록으로 화면을 만든다.
+const List<ChatMessage> _defaultMessages = [
+  ChatMessage(text: '오늘 뭐 배워?', isUser: true),
+  ChatMessage(text: 'AI 챗봇에 움직이는 응답을 붙입니다.', isUser: false),
+  ChatMessage(text: '타이핑 점은 왜 필요해요?', isUser: true),
+  ChatMessage(
+    text: '응답이 1초를 넘으면 앱이 멈춘 것처럼 보이기 때문입니다.',
+    isUser: false,
+  ),
+];
+
 class ChatPage extends StatefulWidget {
-  const ChatPage({super.key});
+  const ChatPage({super.key, this.initialMessages = _defaultMessages});
+
+  final List<ChatMessage> initialMessages;
 
   @override
   State<ChatPage> createState() => _ChatPageState();
 }
 
 class _ChatPageState extends State<ChatPage> {
-  /// 실습용 가짜 대화 — API를 붙이기 전까지 이 목록으로 화면을 만든다.
-  final List<ChatMessage> _messages = [
-    const ChatMessage(text: '오늘 뭐 배워?', isUser: true),
-    const ChatMessage(text: 'AI 챗봇에 움직이는 응답을 붙입니다.', isUser: false),
-    const ChatMessage(text: '타이핑 점은 왜 필요해요?', isUser: true),
-    const ChatMessage(
-      text: '응답이 1초를 넘으면 앱이 멈춘 것처럼 보이기 때문입니다.',
-      isUser: false,
-    ),
-  ];
+  late final List<ChatMessage> _messages =
+      List<ChatMessage>.of(widget.initialMessages);
 
   final TextEditingController _controller = TextEditingController();
 
@@ -77,31 +82,30 @@ class _ChatPageState extends State<ChatPage> {
         child: Column(
           children: [
             // ─────────────────────────────────────────────────────────
-            // ✅ 할 일 1 — 완료된 부분
-            //    ListView.builder + reverse: true
-            //    · reverse:true면 index 0이 화면 맨 아래(최신)다.
-            //    · 그래서 _messages[length - 1 - i]로 거꾸로 꺼낸다.
+            // ✅ 할 일 4 — 빈 상태
+            //    ListView를 Stack으로 감싸고, 목록이 비었을 때만
+            //    Center(child: Text('무엇이든 물어보세요'))를 위에 띄운다.
             // ─────────────────────────────────────────────────────────
             Expanded(
-              child: ListView.builder(
-                reverse: true,
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                itemCount: _messages.length,
-                itemBuilder: (context, index) {
-                  final message =
-                      _messages[_messages.length - 1 - index];
-                  return _Bubble(message: message);
-                },
+              child: Stack(
+                children: [
+                  ListView.builder(
+                    reverse: true,
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    itemCount: _messages.length,
+                    itemBuilder: (context, index) {
+                      final message =
+                          _messages[_messages.length - 1 - index];
+                      return _Bubble(message: message);
+                    },
+                  ),
+                  if (_messages.isEmpty)
+                    const Center(
+                      child: Text('무엇이든 물어보세요'),
+                    ),
+                ],
               ),
             ),
-
-            // ─────────────────────────────────────────────────────────
-            // TODO 4 — 빈 상태
-            // TIP: ListView를 Stack으로 감싸고, 목록이 비었을 때만
-            //      Center(child: Text('무엇이든 물어보세요'))를 위에 띄운다.
-            //      지금은 목록에 가짜 대화가 있어 빈 상태가 보이지 않는다.
-            //      _messages를 비우고 확인해 보자.
-            // ─────────────────────────────────────────────────────────
 
             // ─────────────────────────────────────────────────────────
             // TODO 3 — 입력창 (TextField + 전송 버튼)

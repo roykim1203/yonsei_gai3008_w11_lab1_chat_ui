@@ -17,6 +17,35 @@ void main() {
     // 할 일 3이 끝났다면 입력창과 전송 버튼이 있다
     expect(find.byType(TextField), findsOneWidget);
     expect(find.byIcon(Icons.send), findsOneWidget);
+
+    // 할 일 4 — 메시지가 있으므로 빈 상태 문구는 보이지 않는다
+    expect(find.text('무엇이든 물어보세요'), findsNothing);
+  });
+
+  testWidgets('메시지가 없으면 빈 상태 안내 문구가 보인다',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(home: ChatPage(initialMessages: [])),
+    );
+
+    expect(find.text('무엇이든 물어보세요'), findsOneWidget);
+    expect(find.byType(ListView), findsOneWidget);
+  });
+
+  testWidgets('빈 상태에서 첫 메시지를 보내면 안내 문구가 사라진다',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(home: ChatPage(initialMessages: [])),
+    );
+
+    expect(find.text('무엇이든 물어보세요'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField), '첫 질문');
+    await tester.tap(find.byIcon(Icons.send));
+    await tester.pump();
+
+    expect(find.text('무엇이든 물어보세요'), findsNothing);
+    expect(find.text('첫 질문'), findsOneWidget);
   });
 
   testWidgets('전송하면 사용자 말풍선이 추가되고 입력창이 비워진다',
