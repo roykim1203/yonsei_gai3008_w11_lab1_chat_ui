@@ -36,12 +36,35 @@ class ChatPage extends StatefulWidget {
 
 class _ChatPageState extends State<ChatPage> {
   /// 실습용 가짜 대화 — API를 붙이기 전까지 이 목록으로 화면을 만든다.
-  final List<ChatMessage> _messages = const [
-    ChatMessage(text: '오늘 뭐 배워?', isUser: true),
-    ChatMessage(text: 'AI 챗봇에 움직이는 응답을 붙입니다.', isUser: false),
-    ChatMessage(text: '타이핑 점은 왜 필요해요?', isUser: true),
-    ChatMessage(text: '응답이 1초를 넘으면 앱이 멈춘 것처럼 보이기 때문입니다.', isUser: false),
+  final List<ChatMessage> _messages = [
+    const ChatMessage(text: '오늘 뭐 배워?', isUser: true),
+    const ChatMessage(text: 'AI 챗봇에 움직이는 응답을 붙입니다.', isUser: false),
+    const ChatMessage(text: '타이핑 점은 왜 필요해요?', isUser: true),
+    const ChatMessage(
+      text: '응답이 1초를 넘으면 앱이 멈춘 것처럼 보이기 때문입니다.',
+      isUser: false,
+    ),
   ];
+
+  final TextEditingController _controller = TextEditingController();
+
+  void _send() {
+    final text = _controller.text.trim();
+    if (text.isEmpty) {
+      return;
+    }
+
+    setState(() {
+      _messages.add(ChatMessage(text: text, isUser: true));
+      _controller.clear();
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -90,7 +113,31 @@ class _ChatPageState extends State<ChatPage> {
             //  · 보낼 때 _controller.clear() 하고 setState로 목록에 추가한다.
             //  · dispose()에서 _controller.dispose()를 잊지 않는다.
             // ─────────────────────────────────────────────────────────
-            const _TodoBar(label: 'TODO 3 — 여기에 입력창을 만든다'),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _controller,
+                      textInputAction: TextInputAction.send,
+                      onSubmitted: (_) => _send(),
+                      decoration: const InputDecoration(
+                        hintText: '메시지를 입력하세요',
+                        border: OutlineInputBorder(),
+                        isDense: true,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton.filled(
+                    onPressed: _send,
+                    icon: const Icon(Icons.send),
+                    tooltip: '전송',
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
       ),
@@ -148,37 +195,6 @@ class _Bubble extends StatelessWidget {
                 : colorScheme.onSurface,
           ),
         ),
-      ),
-    );
-  }
-}
-
-/// TODO 3이 끝나면 지운다. 지금은 입력창 자리를 보여 주는 표시일 뿐이다.
-class _TodoBar extends StatelessWidget {
-  const _TodoBar({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(12, 4, 12, 12),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.edit_outlined, size: 18),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              label,
-              style: const TextStyle(fontSize: 13),
-            ),
-          ),
-        ],
       ),
     );
   }
