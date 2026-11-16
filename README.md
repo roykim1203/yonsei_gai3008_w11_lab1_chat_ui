@@ -241,18 +241,4 @@ docs/screenshots/          ← 채팅 UI·오류·재시도 데모 이미지 3�
 
 ---
 
-## 제출 전 확인 사항
-
-- [x] `docs/screenshots/`에 `chat_ui.png`, `error_retry.png`, `retry_demo.gif` 추가
-- [x] README에 이미지 상대 경로로 연결
-- [ ] README 미리보기에서 이미지 3개 표시 확인
-- [ ] `home: const ChatPage(),` 유지, 임시 Mock 설정 없음 (`git diff` 확인)
-- [ ] `flutter pub get` 후 `flutter run -d chrome`으로 재확인
-- [ ] `dart analyze` 재실행
-- [ ] (가능하면) 다른 환경에서 `flutter test` 재시도 후 결과 갱신
-- [ ] 브랜치 Push → 개인 저장소 URL·커밋 목록 URL 최종 확인
-- [ ] `analysis_options.yaml`, `pubspec.lock` 변경분은 제출 커밋에 포함하지 않음
-
----
-
 ⓒ 2026 Baryon Labs · 연세대학교 GAI3008-01 응용모바일프로그래밍 교육자료 (스타터 프로젝트 기반)
