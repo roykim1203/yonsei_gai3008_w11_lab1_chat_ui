@@ -89,4 +89,39 @@ void main() {
 
     expect(find.text('엔터로 보내기'), findsOneWidget);
   });
+
+  testWidgets('작은 화면에서도 입력창이 보이고 레이아웃 오류가 없다',
+      (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(320, 480);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(const ChatLabApp());
+
+    expect(tester.takeException(), isNull);
+    expect(find.byType(ListView), findsOneWidget);
+    expect(find.byType(TextField), findsOneWidget);
+
+    final sendRect = tester.getRect(find.byIcon(Icons.send));
+    expect(sendRect.bottom, lessThanOrEqualTo(480.0));
+  });
+
+  testWidgets('키보드가 올라와도 입력창이 화면 안에 남는다',
+      (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(400, 800);
+    tester.view.devicePixelRatio = 1.0;
+    tester.view.viewInsets = const FakeViewPadding(bottom: 300);
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(const ChatLabApp());
+
+    expect(tester.takeException(), isNull);
+    expect(find.byType(ListView), findsOneWidget);
+    expect(find.byType(TextField), findsOneWidget);
+
+    // 키보드가 차지한 300px 위쪽에 입력창이 있어야 한다
+    final sendRect = tester.getRect(find.byIcon(Icons.send));
+    expect(sendRect.bottom, lessThanOrEqualTo(500.0));
+    expect(sendRect.top, greaterThanOrEqualTo(0.0));
+  });
 }
